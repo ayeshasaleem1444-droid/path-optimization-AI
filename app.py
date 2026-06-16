@@ -44,9 +44,9 @@ def load_graph():
 # Initialize data mapping on startup loop
 load_graph()
 
-# =====================================================================
+
 # AI PATHFINDING MODULE: A* SEARCH WITH DYNAMIC TRAFFIC ESTIMATIONS
-# =====================================================================
+
 
 def haversine_heuristic(node_a_id, node_b_id):
     """Calculates straight-line spatial distance (in km) between positions."""
