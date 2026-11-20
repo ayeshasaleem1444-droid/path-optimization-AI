@@ -22,3 +22,7 @@ to live data: the user will enter any start and destination in Lahore.
   one wrong network position (Shahdara Bagh) even on mobile data; after a
   GPS lock the phone located accurately near home. Lesson: the app must
   always show the found location and let the user confirm or correct it.
+- Day 3 (2026-11-18): Screen layout built and simplified — form and
+  Leaflet map side by side, dashboard menu with panels, result cards
+  relabelled Fuel Needed / Route Status. Pushed in two commits.
+
