@@ -12,7 +12,7 @@ to live data: the user will enter any start and destination in Lahore.
 - Leaflet + OpenStreetMap tiles — route line on a map
 - Fuel estimate — distance ÷ vehicle mileage × fuel price
 - AI model (planned) — a regression model that predicts actual travel
-  time from distance, OSRM duration, hour, peak flag and weather
+  time from distance, OSRM duration, hour, peak flag.
 
 ## Progress
 
