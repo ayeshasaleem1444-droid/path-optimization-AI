@@ -25,4 +25,16 @@ to live data: the user will enter any start and destination in Lahore.
 - Day 3 (2026-11-18): Screen layout built and simplified — form and
   Leaflet map side by side, dashboard menu with panels, result cards
   relabelled Fuel Needed / Route Status. Pushed in two commits.
-
+- Day 4 (2026-11-21): Location dropdowns replaced with free-text inputs —
+  the user now types any start and destination in Lahore instead of
+  picking from the fixed node list.
+- Day 5 (2026-11-21): Nominatim geocoding wired into the app — typed
+  place names become coordinates and markers on the map. Live test
+  passed: Packages Mall → MAO College.
+- Day 6 (2026-11-21): OSRM route call added after geocoding — real
+  distance and duration now show in the result cards (Packages Mall →
+  MAO College: 14.27 km, 16 min; own test, Shahdara → Kalma Chowk:
+  15.64 km, 17 min). OSRM time is a car in free-flow conditions — the
+  baseline the AI model will learn to correct. Lessons: getElementById
+  is case-sensitive, and a block of code only works inside the function
+  that owns its variables.
