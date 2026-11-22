@@ -148,12 +148,11 @@ document.addEventListener("DOMContentLoaded", function () {
       const response = await fetch("/shortest_path", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // Find this block inside fetchOptimizedPath()
         body: JSON.stringify({
           start: startNodeId,
           end: endNodeId,
           traffic: trafficMode,
-          vehicleMultiplier: selectedVehicleMultiplier, // Add this new line here
+          vehicleMultiplier: selectedVehicleMultiplier,
         }),
       });
 
@@ -318,14 +317,6 @@ document.addEventListener("DOMContentLoaded", function () {
           return;
         }
 
-        // Reset selector choices to guarantee a clean slate setup
-        if (startSelect)
-          startSelect.innerHTML =
-            '<option value="">-- Choose Origin --</option>';
-        if (endSelect)
-          endSelect.innerHTML =
-            '<option value="">-- Choose Destination --</option>';
-
         targetArray.forEach((n) => {
           if (!n || !n.id) return; // Skip corrupted nodes
 
@@ -341,24 +332,10 @@ document.addEventListener("DOMContentLoaded", function () {
             marker.on("click", () => handleNodeSelection(stringId));
             mapMarkers[stringId] = marker;
           }
-
-          // Populate frontend dropdown list element parameters dynamically
-          if (startSelect) {
-            const opt = document.createElement("option");
-            opt.value = stringId;
-            opt.textContent = n.name || `Location Hub ${stringId}`;
-            startSelect.appendChild(opt);
-          }
-          if (endSelect) {
-            const opt = document.createElement("option");
-            opt.value = stringId;
-            opt.textContent = n.name || `Location Hub ${stringId}`;
-            endSelect.appendChild(opt);
-          }
         });
 
         console.log(
-          `✅ Success: Populated ${targetArray.length} location nodes into your dropdown options!`,
+          `✅ Success: Loaded ${targetArray.length} location nodes onto the map!`,
         );
       })
       .catch((err) =>
@@ -478,8 +455,8 @@ document.addEventListener("DOMContentLoaded", function () {
           dynamicStart.value &&
           dynamicEnd.value
         ) {
-          const sName = dynamicStart.options[dynamicStart.selectedIndex].text;
-          const eName = dynamicEnd.options[dynamicEnd.selectedIndex].text;
+          const sName = dynamicStart.value;
+          const eName = dynamicEnd.value;
 
           // Let background response data arrive before grabbing inner text properties
           setTimeout(() => {
@@ -527,8 +504,8 @@ document.addEventListener("DOMContentLoaded", function () {
         </tr>
       `;
     } else {
-      const sName = dynamicStart.options[dynamicStart.selectedIndex].text;
-      const eName = dynamicEnd.options[dynamicEnd.selectedIndex].text;
+      const sName = dynamicStart.value;
+      const eName = dynamicEnd.value;
       const calculatedDistance =
         document.getElementById("totalDistance").innerText;
 
@@ -536,7 +513,7 @@ document.addEventListener("DOMContentLoaded", function () {
         <tr style="border-bottom: 1px solid #f1f5f9;">
           <td style="padding: 14px 8px; font-weight: 600; color: #1e293b;">Active Transit Track</td>
           <td style="padding: 14px 8px; color: #475569;">${sName} ➔ ${eName}</td>
-          <td style="padding: 14px 8px; color: #475569; font-weight: 500;">${calculatedDistance}</td>
+          <td style="padding: 14px 8px; color: #475569;">${calculatedDistance}</td>
           <td style="padding: 14px 8px;"><span style="background: #dcfce7; color: #15803d; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 600;">Active / Loaded</span></td>
         </tr>
       `;
@@ -565,7 +542,7 @@ document.addEventListener("DOMContentLoaded", function () {
     `;
   }
 
-  // Scroll to the bottom and paste this right before the last });
+  // Vehicle type selector (legacy panel control, guarded if absent)
   const vehicleSelect = document.getElementById("vehicleType");
   if (vehicleSelect) {
     vehicleSelect.addEventListener("change", function () {
@@ -573,6 +550,99 @@ document.addEventListener("DOMContentLoaded", function () {
       if (startNodeId && endNodeId) {
         fetchOptimizedPath();
       }
+    });
+  }
+
+  // ==========================================
+  // 6. LIVE PLATFORM: NOMINATIM GEOCODING + OSRM ROUTING
+  // ==========================================
+  async function geocodePlace(placeName) {
+    const url =
+      "https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" +
+      encodeURIComponent(placeName + ", Lahore, Pakistan");
+    const response = await fetch(url);
+    const data = await response.json();
+    if (!data || data.length === 0) return null;
+    return {
+      lat: parseFloat(data[0].lat),
+      lon: parseFloat(data[0].lon),
+      displayName: data[0].display_name,
+    };
+  }
+
+  const findPathBtn = document.getElementById("findPathButton");
+  if (findPathBtn) {
+    findPathBtn.addEventListener("click", async function () {
+      const startText = document
+        .getElementById("startLocationSelect")
+        .value.trim();
+      const endText = document.getElementById("endLocationSelect").value.trim();
+      const statusCard = document.getElementById("stopsCount");
+
+      if (!startText || !endText) {
+        if (statusCard) statusCard.textContent = "Enter both places";
+        return;
+      }
+      if (statusCard) statusCard.textContent = "Searching...";
+
+      const start = await geocodePlace(startText);
+      const end = await geocodePlace(endText);
+      console.log("Start:", start);
+      console.log("Destination:", end);
+
+      if (!start || !end) {
+        if (statusCard)
+          statusCard.textContent =
+            "Not found: " + (!start ? startText : endText);
+        return;
+      }
+      if (statusCard) statusCard.textContent = "Places found ✓";
+
+      L.marker([start.lat, start.lon])
+        .addTo(map)
+        .bindPopup(start.displayName)
+        .openPopup();
+      L.marker([end.lat, end.lon]).addTo(map).bindPopup(end.displayName);
+      map.fitBounds(
+        [
+          [start.lat, start.lon],
+          [end.lat, end.lon],
+        ],
+        { padding: [40, 40] },
+      );
+
+      // OSRM: real road distance + duration for the two geocoded points
+      const osrmUrl =
+        "https://router.project-osrm.org/route/v1/driving/" +
+        start.lon +
+        "," +
+        start.lat +
+        ";" +
+        end.lon +
+        "," +
+        end.lat +
+        "?overview=false";
+      const routeResponse = await fetch(osrmUrl);
+      const routeData = await routeResponse.json();
+      console.log("OSRM:", routeData);
+
+      if (
+        routeData.code !== "Ok" ||
+        !routeData.routes ||
+        routeData.routes.length === 0
+      ) {
+        if (statusCard) statusCard.textContent = "Route not found";
+        return;
+      }
+
+      const route = routeData.routes[0];
+      const distanceKm = (route.distance / 1000).toFixed(2);
+      const durationMin = Math.round(route.duration / 60);
+
+      document.getElementById("totalDistance").textContent =
+        distanceKm + " km";
+      document.getElementById("totalTime").textContent = durationMin + " min";
+      if (statusCard) statusCard.textContent = "Route found ✓";
     });
   }
 });
