@@ -556,6 +556,10 @@ document.addEventListener("DOMContentLoaded", function () {
   // ==========================================
   // 6. LIVE PLATFORM: NOMINATIM GEOCODING + OSRM ROUTING
   // ==========================================
+  let routeLine = null;
+  let startMarker = null;
+  let endMarker = null;
+
   async function geocodePlace(placeName) {
     const url =
       "https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" +
@@ -598,11 +602,16 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       if (statusCard) statusCard.textContent = "Places found ✓";
 
-      L.marker([start.lat, start.lon])
+      if (startMarker) map.removeLayer(startMarker);
+      if (endMarker) map.removeLayer(endMarker);
+      startMarker = L.marker([start.lat, start.lon])
         .addTo(map)
         .bindPopup(start.displayName)
         .openPopup();
-      L.marker([end.lat, end.lon]).addTo(map).bindPopup(end.displayName);
+      endMarker = L.marker([end.lat, end.lon])
+        .addTo(map)
+        .bindPopup(end.displayName);
+
       map.fitBounds(
         [
           [start.lat, start.lon],
@@ -621,7 +630,7 @@ document.addEventListener("DOMContentLoaded", function () {
         end.lon +
         "," +
         end.lat +
-        "?overview=false";
+        "?overview=full&geometries=geojson";
       const routeResponse = await fetch(osrmUrl);
       const routeData = await routeResponse.json();
       console.log("OSRM:", routeData);
@@ -639,9 +648,17 @@ document.addEventListener("DOMContentLoaded", function () {
       const distanceKm = (route.distance / 1000).toFixed(2);
       const durationMin = Math.round(route.duration / 60);
 
-      document.getElementById("totalDistance").textContent =
-        distanceKm + " km";
+      document.getElementById("totalDistance").textContent = distanceKm + " km";
       document.getElementById("totalTime").textContent = durationMin + " min";
+      const lineCoords = route.geometry.coordinates.map((c) => [c[1], c[0]]);
+      if (routeLine) map.removeLayer(routeLine);
+      routeLine = L.polyline(lineCoords, {
+        color: "#3b82f6",
+        weight: 5,
+        opacity: 0.85,
+      }).addTo(map);
+      map.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
+
       if (statusCard) statusCard.textContent = "Route found ✓";
     });
   }
