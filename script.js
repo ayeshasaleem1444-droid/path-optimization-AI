@@ -557,6 +557,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // 6. LIVE PLATFORM: NOMINATIM GEOCODING + OSRM ROUTING
   // ==========================================
   let routeLine = null;
+  let liveStart = null;
   let startMarker = null;
   let endMarker = null;
 
@@ -564,6 +565,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const url =
       "https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" +
       encodeURIComponent(placeName + ", Lahore, Pakistan");
+
     const response = await fetch(url);
     const data = await response.json();
     if (!data || data.length === 0) return null;
@@ -589,7 +591,11 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       if (statusCard) statusCard.textContent = "Searching...";
 
-      const start = await geocodePlace(startText);
+      const start =
+        liveStart && startText === liveStart.displayName
+          ? liveStart
+          : await geocodePlace(startText);
+
       const end = await geocodePlace(endText);
       console.log("Start:", start);
       console.log("Destination:", end);
@@ -660,6 +666,43 @@ document.addEventListener("DOMContentLoaded", function () {
       map.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
 
       if (statusCard) statusCard.textContent = "Route found ✓";
+    });
+  }
+  const locBtn = document.getElementById("useLocationBtn");
+  if (locBtn) {
+    locBtn.addEventListener("click", function () {
+      const locStatus = document.getElementById("locationStatus");
+      if (!navigator.geolocation) {
+        if (locStatus)
+          locStatus.textContent = "This browser does not support location.";
+        return;
+      }
+      if (locStatus) locStatus.textContent = "Finding your location...";
+      navigator.geolocation.getCurrentPosition(
+        async function (pos) {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          console.log("Live location:", lat, lon);
+          const res = await fetch(
+            "https://nominatim.openstreetmap.org/reverse?format=json&lat=" +
+              lat +
+              "&lon=" +
+              lon,
+          );
+          const data = await res.json();
+          const name = data.display_name || lat + ", " + lon;
+          liveStart = { lat: lat, lon: lon, displayName: name };
+          if (locStatus)
+            locStatus.textContent =
+              "Found: " + name + " — if this is wrong, edit the start box.";
+          document.getElementById("startLocationSelect").value = name;
+        },
+        function () {
+          if (locStatus)
+            locStatus.textContent =
+              "Could not get your location. Type your start instead.";
+        },
+      );
     });
   }
 });
